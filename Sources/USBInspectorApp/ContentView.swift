@@ -4,21 +4,33 @@ import USBInspectorCore
 struct ContentView: View {
     @ObservedObject var viewModel: InspectorViewModel
     @State private var searchText = ""
+    @State private var hideBuiltInDevices = true
 
     private var filteredDevices: [USBDeviceSummary] {
-        guard !searchText.isEmpty else { return viewModel.usbDevices }
-        return viewModel.usbDevices.filter { device in
-            let haystack = [
-                device.name,
-                device.vendor ?? "",
-                device.vendorID ?? "",
-                device.productID ?? "",
-                device.pathDescription
-            ]
-                .joined(separator: " ")
-                .lowercased()
-            return haystack.contains(searchText.lowercased())
+        var devices = viewModel.usbDevices
+
+        // Filter out built-in devices if toggle is on
+        if hideBuiltInDevices {
+            devices = devices.filter { !$0.isBuiltIn }
         }
+
+        // Apply search filter
+        if !searchText.isEmpty {
+            devices = devices.filter { device in
+                let haystack = [
+                    device.name,
+                    device.vendor ?? "",
+                    device.vendorID ?? "",
+                    device.productID ?? "",
+                    device.pathDescription
+                ]
+                    .joined(separator: " ")
+                    .lowercased()
+                return haystack.contains(searchText.lowercased())
+            }
+        }
+
+        return devices
     }
 
     private var filteredCables: [ThunderboltCableSummary] {
@@ -79,7 +91,7 @@ struct ContentView: View {
             .listStyle(.sidebar)
             .navigationTitle("USB Inspector")
             .toolbar {
-                ToolbarItem {
+                ToolbarItem(placement: .primaryAction) {
                     Button(action: viewModel.refresh) {
                         if viewModel.isRefreshing {
                             ProgressView()
@@ -89,6 +101,12 @@ struct ContentView: View {
                     }
                     .help(viewModel.isRefreshing ? "Refreshing…" : "Fetch latest USB / Thunderbolt state")
                     .disabled(viewModel.isRefreshing)
+                }
+                ToolbarItem(placement: .primaryAction) {
+                    Toggle(isOn: $hideBuiltInDevices) {
+                        Label("Hide Built-in", systemImage: hideBuiltInDevices ? "eye.slash" : "eye")
+                    }
+                    .help("Toggle visibility of built-in devices (cameras, Bluetooth, etc.)")
                 }
                 if let lastUpdated = viewModel.lastUpdated {
                     ToolbarItem {
@@ -149,6 +167,52 @@ private struct EmptyStateView: View {
 private struct DeviceSummaryRow: View {
     let device: USBDeviceSummary
 
+    var cableTypeDescription: String {
+        var capabilities: [String] = []
+
+        switch device.dataPowerState {
+        case .dataAndPower:
+            capabilities.append("Data")
+            capabilities.append("Power")
+        case .powerOnly:
+            capabilities.append("Power Only")
+        case .unknown:
+            capabilities.append("Unknown")
+        }
+
+        if device.videoCapability == .capable {
+            if !capabilities.contains("Power Only") {
+                capabilities.append("Video")
+            }
+        }
+
+        return capabilities.joined(separator: " + ")
+    }
+
+    var cableIconName: String {
+        if device.videoCapability == .capable {
+            return "cable.connector.horizontal"
+        } else if device.dataPowerState == .dataAndPower {
+            return "cable.connector"
+        } else if device.dataPowerState == .powerOnly {
+            return "bolt.fill"
+        } else {
+            return "questionmark.circle"
+        }
+    }
+
+    var cableTypeColor: Color {
+        if device.videoCapability == .capable && device.dataPowerState == .dataAndPower {
+            return .green  // Best: Data + Power + Video
+        } else if device.dataPowerState == .dataAndPower {
+            return .blue   // Good: Data + Power
+        } else if device.dataPowerState == .powerOnly {
+            return .orange // Limited: Power Only
+        } else {
+            return .gray   // Unknown
+        }
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack {
@@ -159,6 +223,16 @@ private struct DeviceSummaryRow: View {
                 CapabilityTag(text: device.transport.rawValue, tint: .blue.opacity(0.8))
                 CapabilityTag(text: device.videoCapability.rawValue, tint: device.videoCapability.tint)
             }
+
+            // Prominent cable type indicator
+            HStack(spacing: 4) {
+                Image(systemName: cableIconName)
+                    .foregroundStyle(cableTypeColor)
+                Text(cableTypeDescription)
+                    .font(.subheadline.bold())
+                    .foregroundStyle(cableTypeColor)
+            }
+            .padding(.vertical, 2)
 
             Text(device.pathDescription)
                 .font(.caption)

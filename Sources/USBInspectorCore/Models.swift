@@ -23,6 +23,7 @@ public struct USBDeviceSummary: Identifiable {
     public let transport: USBTransport
     public let dataPowerState: DataPowerState
     public let videoCapability: VideoCapability
+    public let isBuiltIn: Bool
 
     public var id: String {
         serialNumber ?? locationID ?? pathDescription
@@ -48,7 +49,8 @@ public struct USBDeviceSummary: Identifiable {
         deviceProtocol: String?,
         transport: USBTransport,
         dataPowerState: DataPowerState,
-        videoCapability: VideoCapability
+        videoCapability: VideoCapability,
+        isBuiltIn: Bool
     ) {
         self.pathDescription = pathDescription
         self.name = name
@@ -70,6 +72,7 @@ public struct USBDeviceSummary: Identifiable {
         self.transport = transport
         self.dataPowerState = dataPowerState
         self.videoCapability = videoCapability
+        self.isBuiltIn = isBuiltIn
     }
 }
 
@@ -210,6 +213,52 @@ public enum VideoCapability: String {
             return .notCapable
         }
         return .unknown
+    }
+}
+
+public enum DeviceType {
+    case builtIn
+    case external
+
+    static func infer(path: String, name: String, vendor: String?, vendorID: String?, deviceClass: String?) -> DeviceType {
+        let haystack = [path, name, vendor ?? "", vendorID ?? ""]
+            .map { $0.lowercased() }
+            .joined(separator: " ")
+
+        // Built-in device indicators
+        let builtInKeywords = [
+            "bluetooth", "camera", "facetime", "fhd camera", "isight",
+            "fingerprint", "touch bar", "touchbar", "keyboard", "trackpad",
+            "internal", "built-in", "controller hub", "root hub",
+            "usb 2.0 bus", "usb 3.0 bus", "usb 3.1 bus", "usb bus",
+            "apple internal", "t2 controller"
+        ]
+
+        // Check name and path for built-in indicators
+        if builtInKeywords.contains(where: { haystack.contains($0) }) {
+            return .builtIn
+        }
+
+        // Check for Apple vendor (0x05ac) with certain device patterns
+        if vendorID?.lowercased() == "0x05ac" || vendorID?.lowercased() == "05ac" {
+            let appleBuiltIns = ["keyboard", "trackpad", "mouse", "camera", "bluetooth"]
+            if appleBuiltIns.contains(where: { haystack.contains($0) }) {
+                return .builtIn
+            }
+        }
+
+        // Check device class - USB hubs are typically built-in
+        if let devClass = deviceClass?.lowercased(), devClass.contains("hub") {
+            return .builtIn
+        }
+
+        // Path depth check - very short paths are usually built-in hubs
+        let pathComponents = path.components(separatedBy: " > ")
+        if pathComponents.count <= 2 && haystack.contains("hub") {
+            return .builtIn
+        }
+
+        return .external
     }
 }
 

@@ -62,6 +62,8 @@ public struct USBTreeParser {
         let transport = USBTransport.infer(usbVersion: usbVersion, speedDescription: deviceSpeed)
         let powerState = DataPowerState.infer(deviceSpeed: deviceSpeed, currentRequired: currentRequired, bsdName: bsdName, interfaceCount: interfaceCount)
         let videoCapability = VideoCapability.inferUSBDevice(path: pathDescription(from: path), nodeName: name, vendor: vendor, productName: node.stringValue(for: ["product_name"]))
+        let deviceType = DeviceType.infer(path: pathDescription(from: path), name: name, vendor: vendor, vendorID: vendorID, deviceClass: deviceClass)
+        let isBuiltIn = deviceType == .builtIn
 
         return USBDeviceSummary(
             pathDescription: pathDescription(from: path),
@@ -83,7 +85,8 @@ public struct USBTreeParser {
             deviceProtocol: deviceProtocol,
             transport: transport,
             dataPowerState: powerState,
-            videoCapability: videoCapability
+            videoCapability: videoCapability,
+            isBuiltIn: isBuiltIn
         )
     }
 
