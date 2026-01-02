@@ -126,8 +126,33 @@ public enum USBTransport: String {
             return .thunderbolt
         }
 
+        // Prioritize speed over version as it's more reliable
+        if let speed = speedDescription?.lowercased() {
+            // Speed-based detection (most reliable)
+            if speed.contains("40") || speed.contains("40 gb") {
+                return .usb4
+            }
+            if speed.contains("20") || speed.contains("20 gb") {
+                return .usb32
+            }
+            if speed.contains("10") || speed.contains("10 gb") {
+                return .usb31
+            }
+            if speed.contains("5") || speed.contains("5 gb") || speed.contains("super") {
+                return .usb3
+            }
+            if speed.contains("480") || speed.contains("high_speed") || speed.contains("high speed") {
+                return .usb2
+            }
+            if speed.contains("12") || speed.contains("1.5") || speed.contains("full_speed") || speed.contains("low_speed") {
+                return .usb1
+            }
+        }
+
+        // Fall back to version string - use more precise matching
         if let version = usbVersion?.lowercased() {
-            if version.contains("4") {
+            // Match patterns like "usb 4", "4.0", etc. but not "2.14" containing "4"
+            if version.hasPrefix("4") || version.contains("usb 4") || version.contains("usb4") {
                 return .usb4
             }
             if version.contains("3.2") {
@@ -136,39 +161,17 @@ public enum USBTransport: String {
             if version.contains("3.1") {
                 return .usb31
             }
-            if version.contains("3.0") {
+            if version.contains("3.0") || version.hasPrefix("3") {
                 return .usb3
             }
-            if version.contains("2") {
+            if version.contains("2.0") || version.hasPrefix("2") {
                 return .usb2
             }
-            if version.contains("1") {
+            if version.contains("1.0") || version.contains("1.1") || version.hasPrefix("1") {
                 return .usb1
             }
         }
 
-        guard let speed = speedDescription?.lowercased() else {
-            return .unknown
-        }
-
-        if speed.contains("40") {
-            return .usb4
-        }
-        if speed.contains("20") {
-            return .usb32
-        }
-        if speed.contains("10") {
-            return .usb31
-        }
-        if speed.contains("5") {
-            return .usb3
-        }
-        if speed.contains("480") || speed.contains("high") {
-            return .usb2
-        }
-        if speed.contains("12") || speed.contains("full") {
-            return .usb1
-        }
         return .unknown
     }
 }
