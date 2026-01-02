@@ -228,13 +228,18 @@ public enum DeviceType {
             .map { $0.lowercased() }
             .joined(separator: " ")
 
+        // Check for T2 Security Chip bus - all devices on T2Bus are internal
+        if path.contains("T2Bus") || path.lowercased().contains("t2bus") {
+            return .builtIn
+        }
+
         // Built-in device indicators
         let builtInKeywords = [
             "bluetooth", "camera", "facetime", "fhd camera", "isight",
             "fingerprint", "touch bar", "touchbar", "keyboard", "trackpad",
             "internal", "built-in", "controller hub", "root hub",
             "usb 2.0 bus", "usb 3.0 bus", "usb 3.1 bus", "usb bus",
-            "apple internal", "t2 controller"
+            "apple internal", "t2 controller", "composite_device"
         ]
 
         // Check name and path for built-in indicators
