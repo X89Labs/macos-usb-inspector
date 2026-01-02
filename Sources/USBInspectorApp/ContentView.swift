@@ -103,10 +103,11 @@ struct ContentView: View {
                     .disabled(viewModel.isRefreshing)
                 }
                 ToolbarItem(placement: .primaryAction) {
-                    Toggle(isOn: $hideBuiltInDevices) {
-                        Label("Hide Built-in", systemImage: hideBuiltInDevices ? "eye.slash" : "eye")
+                    Button(action: { hideBuiltInDevices.toggle() }) {
+                        Label(hideBuiltInDevices ? "Show Built-in" : "Hide Built-in",
+                              systemImage: hideBuiltInDevices ? "eye.slash.fill" : "eye.fill")
                     }
-                    .help("Toggle visibility of built-in devices (cameras, Bluetooth, etc.)")
+                    .help(hideBuiltInDevices ? "Show built-in devices (cameras, Bluetooth, etc.)" : "Hide built-in devices")
                 }
                 if let lastUpdated = viewModel.lastUpdated {
                     ToolbarItem {
